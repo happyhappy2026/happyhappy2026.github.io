@@ -1,0 +1,1152 @@
+<!-- 本工作台通过 WorkBuddy 资料库能力（library skill）搭建、存储和部署 -->
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>投资理财决策台</title>
+<style>
+  :root{
+    --bg:#eef1f6; --card:#ffffff; --ink:#1c2530; --sub:#6b7785; --line:#e3e8ef;
+    --primary:#1f4e79; --primary-soft:#eaf1f8; --accent:#c8a04a;
+    --up:#e23c3c; --up-soft:#fdeaea;     /* 涨=红（A股习惯） */
+    --down:#1aa15a; --down-soft:#e8f6ee; /* 跌=绿 */
+    --policy:#c8841a; --policy-soft:#fbf2e2;
+    --warn:#e23c3c; --radius:14px; --shadow:0 2px 10px rgba(20,40,70,.06);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg);color:var(--ink);font-size:15px;line-height:1.5;
+    padding-bottom:calc(64px + env(safe-area-inset-bottom));
+  }
+  /* 顶栏 */
+  .topbar{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line);padding:10px 14px 8px;}
+  .topbar .row{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .brand{display:flex;align-items:center;gap:8px;font-weight:700;font-size:17px;color:var(--primary)}
+  .brand svg{width:22px;height:22px}
+  .meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--sub)}
+  .sync{display:inline-flex;align-items:center;gap:5px;padding:3px 9px;border-radius:999px;
+    background:var(--primary-soft);color:var(--primary);font-weight:600}
+  .sync .dot{width:7px;height:7px;border-radius:50%;background:var(--down)}
+  .sync.off .dot{background:#bbb}
+  .sync.off{background:#f0f0f0;color:#888}
+
+  /* 顶部主 Tab */
+  .topTabs{display:flex;gap:6px;margin:12px 12px 0;background:#fff;border:1px solid var(--line);
+    border-radius:12px;padding:5px;box-shadow:var(--shadow)}
+  .topTab{flex:1;border:none;background:transparent;color:var(--sub);font-weight:600;
+    font-size:14px;padding:10px 6px;border-radius:9px;min-height:44px}
+  .topTab.active{background:var(--primary);color:#fff}
+
+  /* 子 Tab（今日信息内） */
+  .subTabs{display:flex;gap:6px;margin:12px 12px 0;background:#fff;border:1px solid var(--line);
+    border-radius:12px;padding:5px;box-shadow:var(--shadow);overflow:auto}
+  .subTab{flex:1;min-width:72px;border:none;background:transparent;color:var(--sub);font-weight:600;
+    font-size:13.5px;padding:9px 6px;border-radius:9px;min-height:44px}
+  .subTab.active{background:var(--primary);color:#fff}
+
+  /* 页面容器 */
+  .topPage{display:none;padding:12px}
+  .topPage.active{display:block}
+  .page{display:none;padding:12px}
+  .page.active{display:block}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:14px;margin-bottom:12px}
+  .card h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:7px;color:var(--primary)}
+  .card h3 svg{width:17px;height:17px}
+  .card .sub{font-size:12px;color:var(--sub);font-weight:400;margin-left:auto}
+  .addBtn{border:1px dashed var(--primary);background:var(--primary-soft);color:var(--primary);
+    border-radius:9px;padding:8px 12px;font-size:13px;font-weight:600;min-height:40px;width:100%}
+  .addBtn:active{opacity:.7}
+
+  /* 目录概览卡 */
+  .catGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .catCard{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    box-shadow:var(--shadow);padding:13px;min-height:96px;display:flex;flex-direction:column;gap:4px;position:relative}
+  .catCard:active{opacity:.7}
+  .catCard .ct{font-size:12.5px;color:var(--sub);font-weight:600;display:flex;align-items:center;gap:6px}
+  .catCard .cv{font-size:20px;font-weight:800}
+  .catCard .cd{font-size:11.5px;color:var(--sub)}
+  .catCard .ct svg{width:15px;height:15px}
+  .full{grid-column:1 / -1}
+
+  /* 筛选 chips */
+  .chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px}
+  .chip{border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:999px;
+    padding:5px 12px;font-size:12.5px;font-weight:600;min-height:34px}
+  .chip.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+
+  /* 新闻列表 */
+  .news{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--line);align-items:flex-start}
+  .news:first-child{border-top:none}
+  .news .idx{font-size:12px;color:#9aa6b3;font-weight:700;flex:0 0 22px;text-align:center;padding-top:2px}
+  .news .body{flex:1;min-width:0}
+  .news .title{font-size:14px;font-weight:600;line-height:1.45}
+  .news .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:5px;align-items:center}
+  .tag{font-size:11px;font-weight:700;padding:2px 8px;border-radius:6px}
+  .tag.policy{background:var(--policy-soft);color:var(--policy)}
+  .tag.macro{background:#eaf1f8;color:#3a6ea5}
+  .tag.ind{background:#eef6ee;color:#3a8a55}
+  .tag.star{background:#fff4d6;color:#b8860b}
+  .news .src{font-size:11.5px;color:var(--sub);margin-left:auto;white-space:nowrap}
+  .news .act{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap;align-items:center}
+  .news .act button{border:1px solid var(--line);background:#fff;color:var(--sub);border-radius:7px;
+    font-size:11.5px;padding:4px 9px;min-height:30px}
+  .news .act button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
+  .news .summary{font-size:12.5px;color:var(--sub);line-height:1.55;margin:4px 0 2px}
+  .news .act .linkBtn{font-size:11.5px;color:var(--primary);text-decoration:none;font-weight:700;
+    border:1px solid var(--primary);border-radius:7px;padding:4px 9px;min-height:30px;display:inline-flex;align-items:center}
+  .news .act .linkBtn:active{opacity:.7}
+
+  /* 表格 */
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th,td{text-align:right;padding:9px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+  th{color:var(--sub);font-weight:600;font-size:12px}
+  td:first-child,th:first-child{text-align:left}
+  .up{color:var(--up);font-weight:700}
+  .down{color:var(--down);font-weight:700}
+  .flat{color:var(--sub)}
+  .pill{font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px}
+  .pill.add{background:var(--up-soft);color:var(--up)}
+  .pill.cut{background:var(--down-soft);color:var(--down)}
+
+  /* 列表（增持减持 / 全球 movers） */
+  .li{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+  .li:first-child{border-top:none}
+  .li .name{flex:1;font-size:13.5px;font-weight:600}
+  .li .desc{font-size:12px;color:var(--sub);margin-top:2px}
+  .li .val{font-weight:700;font-size:14px;text-align:right}
+  .stockRow{cursor:pointer}
+
+  /* 图表 */
+  .legend{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--sub);margin-top:8px}
+  .legend .k{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .legend .sw{width:10px;height:10px;border-radius:3px;flex:0 0 auto}
+  .barRow{display:flex;align-items:center;gap:8px;margin:7px 0;font-size:12.5px}
+  .barRow .lbl{flex:0 0 92px;color:var(--sub)}
+  .barTrack{flex:1;height:14px;background:#f0f3f7;border-radius:7px;position:relative;overflow:hidden}
+  .barFill{height:100%;border-radius:7px}
+  .barRow .num{flex:0 0 64px;text-align:right;font-weight:700}
+
+  /* 独立趋势小图（各指数自身基准归一，避免被大盘压平） */
+  .trendGrid{display:grid;grid-template-columns:1fr;gap:10px}
+  .tCard{border:1px solid var(--line);border-radius:10px;padding:9px 10px;background:#fbfcfe}
+  .tHead{display:flex;align-items:baseline;gap:8px;margin-bottom:4px}
+  .tName{font-size:12.5px;font-weight:700;color:var(--ink)}
+  .tVal{font-size:13px;font-weight:800}
+  .tChg{font-size:11.5px;font-weight:700;margin-left:auto}
+  .tChart{width:100%;line-height:0}
+
+  /* 个股查询 */
+  .searchBox{width:100%;border:1px solid var(--line);border-radius:10px;padding:11px;font-size:16px;
+    background:#fbfcfe;color:var(--ink);margin-bottom:10px}
+  .kvRow{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-top:1px solid var(--line);font-size:14px}
+  .kvRow:first-of-type{border-top:none}
+  .kvRow b{font-size:15px;font-weight:800}
+
+  /* 表单弹层 */
+  .mask{position:fixed;inset:0;background:rgba(15,25,40,.45);z-index:50;display:none;
+    align-items:flex-end;justify-content:center}
+  .mask.show{display:flex}
+  .sheet{background:#fff;width:100%;max-width:520px;border-radius:18px 18px 0 0;padding:18px 16px
+    calc(18px + env(safe-area-inset-bottom));max-height:88vh;overflow:auto}
+  .sheet h4{margin:0 0 12px;font-size:16px;color:var(--primary)}
+  .field{margin-bottom:11px}
+  .field label{display:block;font-size:12.5px;color:var(--sub);margin-bottom:4px;font-weight:600}
+  .field input,.field select,.field textarea{width:100%;border:1px solid var(--line);border-radius:9px;
+    padding:10px;font-size:16px;font-family:inherit;background:#fbfcfe;color:var(--ink)}
+  .field textarea{resize:vertical;min-height:60px}
+  .sheetBtns{display:flex;gap:10px;margin-top:8px}
+  .sheetBtns button{flex:1;border:none;border-radius:10px;padding:12px;font-size:15px;font-weight:700;min-height:46px}
+  .btnSave{background:var(--primary);color:#fff}
+  .btnCancel{background:#eef1f6;color:var(--sub)}
+
+  /* 数据工具 */
+  .dataTools{display:flex;gap:8px;flex-wrap:wrap;margin:4px 12px 14px}
+  .dataTools button{flex:1;min-width:96px;border:1px solid var(--line);background:#fff;color:var(--ink);
+    border-radius:10px;padding:10px;font-size:13px;font-weight:600;min-height:44px}
+  .hint{font-size:11.5px;color:var(--sub);text-align:center;margin:6px 12px 18px;line-height:1.6}
+  .empty{color:var(--sub);font-size:13px;text-align:center;padding:18px 0}
+  .note{font-size:11.5px;color:var(--sub);background:var(--primary-soft);border-radius:9px;padding:9px 11px;line-height:1.6;margin-bottom:12px}
+
+  /* 底部 Tab 条 */
+  .bottomnav{position:fixed;bottom:0;left:0;right:0;z-index:40;background:#fff;border-top:1px solid var(--line);
+    display:flex;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -2px 10px rgba(20,40,70,.06)}
+  .bottomnav button{flex:1;border:none;background:transparent;color:var(--sub);font-size:11px;font-weight:600;
+    padding:8px 0;display:flex;flex-direction:column;align-items:center;gap:3px;min-height:56px}
+  .bottomnav button svg{width:21px;height:21px}
+  .bottomnav button.active{color:var(--primary)}
+  @media(min-width:760px){
+    body{max-width:880px;margin:0 auto;box-shadow:0 0 30px rgba(0,0,0,.04)}
+    .bottomnav{max-width:880px;margin:0 auto}
+  }
+</style>
+</head>
+<body>
+
+<!-- 顶栏 -->
+<div class="topbar">
+  <div class="row">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l3-4 3 3 4-6"/></svg>
+      投资理财决策台
+    </div>
+    <div class="meta">
+      <span id="todayDate"></span>
+      <span class="sync" id="syncPill"><span class="dot"></span><span id="syncTxt">本地已保存</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- 顶部主 Tab -->
+<div class="topTabs" id="topTabs">
+  <button class="topTab active" data-top="catalog">目录</button>
+  <button class="topTab" data-top="today">今日信息</button>
+  <button class="topTab" data-top="history">历史信息</button>
+</div>
+
+<!-- ================= 目录页 ================= -->
+<div class="topPage active" id="top-catalog">
+  <div class="card">
+    <h3>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>
+      数据快照
+      <span class="sub" id="catDate"></span>
+    </h3>
+    <div class="note">本工作台为个人投资判断辅助看板，数据更新至 <b>2026-09-01 08:30 前</b>。行情类数据由公开资讯整理，个股内置报价为示例值，请以券商终端为准。</div>
+    <div class="catGrid" id="catGrid"></div>
+  </div>
+</div>
+
+<!-- ================= 今日信息页 ================= -->
+<div class="topPage" id="top-today">
+  <div class="subTabs" id="subTabs">
+    <button class="subTab active" data-page="news">财经新闻</button>
+    <button class="subTab" data-page="ashare">A股信息</button>
+    <button class="subTab" data-page="global">全球市场</button>
+    <button class="subTab" data-page="stock">个股信息</button>
+  </div>
+
+  <!-- 模块：财经新闻 -->
+  <div class="page active" id="page-news">
+    <div class="card">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>
+        财经新闻 · 前 50 条（含概要 / 原文链接）
+        <span class="sub" id="newsCount"></span>
+      </h3>
+      <div class="chips" id="newsChips">
+        <button class="chip active" data-f="all">全部</button>
+        <button class="chip" data-f="policy">政策</button>
+        <button class="chip" data-f="macro">宏观</button>
+        <button class="chip" data-f="ind">行业</button>
+        <button class="chip" data-f="star">★标星</button>
+      </div>
+      <div id="newsList"></div>
+      <button class="addBtn" id="addNews" style="margin-top:10px">＋ 添加一条新闻</button>
+    </div>
+    <div class="card">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 2v10l7 4"/></svg>
+        新闻结构分布
+      </h3>
+      <div class="chartWrap" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+        <div id="newsDonut"></div>
+        <div class="legend" id="newsLegend"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模块：A股信息 -->
+  <div class="page" id="page-ashare">
+    <div class="card">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 13l4-4 3 3 5-6"/></svg>
+        重要指标股
+        <span class="sub" id="ashareDate"></span>
+      </h3>
+      <div style="overflow-x:auto"><table id="indexTable"></table></div>
+      <button class="addBtn" id="addIndex" style="margin-top:10px">＋ 添加指标股/个股</button>
+      <div class="barRow" style="margin-top:14px"><span class="lbl">涨跌幅概览</span></div>
+      <div id="indexBars"></div>
+    </div>
+    <div class="card">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 13l4-4 3 3 5-6"/></svg>
+        A股近30日走势
+        <span class="sub">各指数独立展示（自身基准）</span>
+      </h3>
+      <div class="trendGrid" id="ashareGrid"></div>
+    </div>
+    <div class="card">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        增持 / 减持
+        <span class="sub" id="holdCount"></span>
+      </h3>
+      <div id="holdList"></div>
+      <button class="addBtn" id="addHold" style="margin-top:10px">＋ 添加增持减持公告</button>
+    </div>
+  </div>
+
+  <!-- 模块：全球市场 -->
+  <div class="page" id="page-global">
+    <div class="card">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
+        美国证券市场
+        <span class="sub" id="usDate"></span>
+      </h3>
+      <div id="usList"></div>
+      <div class="barRow" style="margin-top:12px"><span class="lbl">三大指数涨跌</span></div>
+      <div id="usBars"></div>
+      <div id="usStreak" style="margin-top:10px;font-size:12.5px;color:var(--sub)"></div>
+    </div>
+    <div class="card">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/></svg>
+        美股近30日走势
+        <span class="sub">各指数独立展示（自身基准）</span>
+      </h3>
+      <div class="trendGrid" id="usGrid"></div>
+    </div>
+    <div class="card">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>
+        中国香港市场
+        <span class="sub" id="hkDate"></span>
+      </h3>
+      <div id="hkList"></div>
+    </div>
+    <div class="card">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V8l9-5 9 5v13"/><path d="M9 21v-6h6v6"/></svg>
+        恒生指数近30日走势
+        <span class="sub">独立展示（自身基准）</span>
+      </h3>
+      <div class="trendGrid" id="hsiGrid"></div>
+    </div>
+    <div class="card">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18l4-6 4 4 4-8 4 5"/><path d="M4 21h16"/></svg>
+        大宗商品
+        <span class="sub">有色金属 · 黄金 · 石油</span>
+      </h3>
+      <div id="cmdList"></div>
+      <div id="cmdBars"></div>
+    </div>
+    <button class="addBtn" id="addGlobal" style="margin-top:2px">＋ 补充全球市场数据</button>
+  </div>
+
+  <!-- 模块：个股信息 -->
+  <div class="page" id="page-stock">
+    <div class="card" id="watchCard">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 17l6-6 4 4 8-8"/><path d="M14 7h7v7"/></svg>
+        我的关注股 · 每日自动跟踪
+        <span class="sub" id="watchUpdated"></span>
+      </h3>
+      <div class="note">以下为你指定的关注股，由 AI 每日爬取网络行情填充（近 10 个交易日真实数据）。如需增删，告诉我股票名称即可。点击卡片展开每日开/收/涨跌明细。</div>
+      <div class="trendGrid" id="watchGrid"></div>
+    </div>
+    <div class="card">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+        个股查询
+        <span class="sub">输入名称或代码</span>
+      </h3>
+      <div class="note">内置开盘价 / 收盘价为示例值（截至 2026-09-01），可手动更新；连接「腾讯自选股 / 东方财富妙想」等连接器后可自动获取实时行情。</div>
+      <input class="searchBox" id="stockSearch" placeholder="如：贵州茅台 / 600519 / 宁德">
+      <div id="stockResults"></div>
+      <div id="stockPick"></div>
+      <button class="addBtn" id="addStock" style="margin-top:10px">＋ 添加 / 更新我的个股</button>
+    </div>
+    <div class="card">
+      <h3>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+        我的自选股
+        <span class="sub" id="stockCount"></span>
+      </h3>
+      <div id="stockMine"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 历史信息页 ================= -->
+<div class="topPage" id="top-history">
+  <div class="card">
+    <h3>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3 12a9 9 0 1 0 3-7L3 8"/><path d="M12 7v5l3 3"/></svg>
+      历史信息记录
+      <span class="sub" id="historyCount"></span>
+    </h3>
+    <div class="note">数据版本更新时自动存档上一版；也可点底部「📌 存档今日快照」手动保存。点击「查看」可回看当日新闻 / A股 / 全球 / 商品全量数据。</div>
+    <div id="historyList"></div>
+  </div>
+</div>
+
+<!-- 数据工具 -->
+<div class="dataTools">
+  <button id="btnArchive">📌 存档今日快照</button>
+  <button id="btnExport">⬇ 导出 JSON 备份</button>
+  <button id="btnImport">⬆ 导入恢复</button>
+  <button id="btnClearSample">🧹 清空示例数据</button>
+</div>
+<div class="hint">数据保存在本机浏览器（localStorage），关闭刷新不丢失。建议定期导出备份。<br>迷你程序版本将支持「每天早上自动推送」最新市场与新闻。</div>
+
+<!-- 底部 Tab 条（移动端） -->
+<div class="bottomnav" id="bottomNav">
+  <button data-top="catalog" class="active">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>目录
+  </button>
+  <button data-top="today">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 13l4-4 3 3 5-6"/></svg>今日
+  </button>
+  <button data-top="history">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3 12a9 9 0 1 0 3-7L3 8"/><path d="M12 7v5l3 3"/></svg>历史
+  </button>
+</div>
+
+<!-- 表单弹层 -->
+<div class="mask" id="mask">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<input type="file" id="fileInput" accept="application/json" style="display:none">
+
+<script>
+/* ============ 数据存储 ============ */
+const KEY="wb_invest_v2"; const VER=4;
+const $=(s)=>document.querySelector(s);
+const $$=(s)=>document.querySelectorAll(s);
+const DATA_DATE="2026-09-01 08:30 前";
+let state={news:[],index:[],hold:[],us:[],hk:[],cmd:[],stocks:[],history:[],trends:{}};
+
+function load(){
+  let raw=null;try{raw=localStorage.getItem(KEY);}catch(e){}
+  if(raw){try{state=JSON.parse(raw);}catch(e){state={};}}
+  ["news","index","hold","us","hk","cmd","stocks","history"].forEach(k=>{if(!Array.isArray(state[k]))state[k]=[];});
+  if(!state.trends)state.trends={};
+  /* 关注股每次打开都从文件内最新种子刷新（由每日自动化更新），不持久化旧数据 */
+  state.watch=WATCH_SEED.map(x=>({...x,days:x.days.map(d=>({...d}))}));
+  if(state._ver!==VER){
+    const oldDate=(state.ashareMeta&&state.ashareMeta.date)?state.ashareMeta.date:"2026-08-30";
+    const hasOld=state.news.length||state.index.length||state.us.length||state.hk.length;
+    if(hasOld)pushHistory("自动存档 · "+oldDate,snap());
+    seedFresh();
+  }
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(state));flashSync();}
+function flashSync(){const p=$("#syncPill");$("#syncTxt").textContent="保存中…";p.classList.remove("off");
+  setTimeout(()=>{$("#syncTxt").textContent="本地已保存";},400);}
+function snap(){return {news:state.news.slice(),index:state.index.slice(),hold:state.hold.slice(),
+  us:state.us.slice(),hk:state.hk.slice(),cmd:state.cmd.slice(),
+  ashareMeta:state.ashareMeta,usMeta:state.usMeta,hkMeta:state.hkMeta,trends:state.trends};}
+function pushHistory(label,s){state.history=state.history||[];state.history.unshift({id:id(),label,ts:Date.now(),snapshot:s});}
+
+/* 确定性随机游走，生成近 n 日走势（末值=last） */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function genSeries(last,n,vol){
+  const seed=Math.floor(Math.abs(last)*1000)%1000000||777;
+  const r=mulberry32(seed);let v=last;const out=[v];
+  for(let i=1;i<n;i++){const ch=(r()-0.5)*2*vol;v=v*(1-ch);out.unshift(Math.round(v*100)/100);}
+  out[out.length-1]=Math.round(last*100)/100;return out;
+}
+
+/* ============ 示例数据（2026-09-01 08:30 前） ============ */
+/* 我的关注股：由 AI 每日爬取网络行情填充（近 10 个交易日真实数据，来源：东方财富/腾讯财经） */
+const WATCH_SEED=[
+  {code:"300489",name:"光智科技",market:"A股·创业板",updated:"2026-08-31",lastClose:239.75,
+   days:[{d:"08-18",o:263.00,c:249.34,chg:-5.19},{d:"08-19",o:241.41,c:222.53,chg:-7.82},{d:"08-20",o:226.91,c:228.63,chg:0.76},{d:"08-21",o:230.00,c:216.55,chg:-5.85},{d:"08-24",o:215.00,c:202.15,chg:-5.98},{d:"08-25",o:198.90,c:217.33,chg:9.27},{d:"08-26",o:217.33,c:208.30,chg:-4.16},{d:"08-27",o:216.00,c:242.04,chg:12.06},{d:"08-28",o:242.11,c:234.09,chg:-3.31},{d:"08-31",o:230.01,c:239.75,chg:4.23}]},
+  {code:"300450",name:"先导智能",market:"A股·创业板",updated:"2026-08-31",lastClose:33.62,
+   days:[{d:"08-18",o:35.38,c:35.24,chg:-0.40},{d:"08-19",o:34.82,c:33.52,chg:-3.73},{d:"08-20",o:33.85,c:33.33,chg:-1.54},{d:"08-21",o:33.12,c:33.91,chg:2.38},{d:"08-24",o:34.20,c:33.84,chg:-1.05},{d:"08-25",o:33.75,c:33.40,chg:-1.04},{d:"08-26",o:33.29,c:33.60,chg:0.93},{d:"08-27",o:33.60,c:33.77,chg:0.51},{d:"08-28",o:33.62,c:33.44,chg:-0.54},{d:"08-31",o:35.02,c:33.62,chg:-4.00}]},
+  {code:"9992",name:"泡泡玛特",market:"港股",updated:"2026-08-31",lastClose:156.10,
+   days:[{d:"08-18",o:152.60,c:150.10,chg:-1.64},{d:"08-19",o:150.80,c:150.50,chg:-0.20},{d:"08-20",o:152.00,c:153.70,chg:1.12},{d:"08-21",o:141.10,c:149.00,chg:5.60},{d:"08-24",o:149.00,c:155.00,chg:4.03},{d:"08-25",o:155.80,c:155.20,chg:-0.39},{d:"08-26",o:155.20,c:154.30,chg:-0.58},{d:"08-27",o:155.30,c:154.00,chg:-0.84},{d:"08-28",o:154.00,c:158.70,chg:3.05},{d:"08-31",o:156.60,c:156.10,chg:-0.32}]}
+];
+
+function seedFresh(){
+  state._ver=VER;
+  state.ashareMeta={date:"最近交易日 08-31（9/1 早间未开盘）"};
+  state.usMeta={streakUp:"8月累计：道指+1.34% / 标普+2.62% / 纳指+3.93%（8/31 全线收跌）",
+    lead:"特斯拉+5.5% / 英伟达+1% / SK海力士+2% / 加密货币概念(Circle+9%)",
+    lag:"医疗(UGI爱迪生国际-23%) / 受美伊冲突与沃什加息预期压制；中概金龙指数-2.18%、阿里-4%",
+    date:"08-31 隔夜"};
+  state.hkMeta={date:"08-31",note:"恒指25566.99 -0.07%；阿里-W跌约4%、腾讯+0.72%、小米-7.28%"};
+  state.news=[
+    {id:id(),t:"央行9月1日开展1827亿元逆回购，利率1.4%不变，当日净回笼1057亿元",cat:"policy",src:"证券日报/东方金诚",d:"09-01",star:true,ts:now()-1,summary:"9月逆回购大规模到期，央行维持短端流动性充裕；分析预计延续加量操作释放积极信号。",link:"https://news.10jqka.com.cn/20260901/c679464614.shtml"},
+    {id:id(),t:"8月中国制造业PMI回升至49.8%，生产和新订单重回扩张区间",cat:"macro",src:"国家统计局/金十",d:"09-01",star:true,ts:now()-2,summary:"高技术制造业PMI维持52.9%高景气，非制造业仍偏弱，修复呈结构性。",link:"https://xnews.jin10.com/details/228759"},
+    {id:id(),t:"财政部：2026年1-7月国有企业利润总额25089.9亿元，同比+0.6%",cat:"macro",src:"财政部/金十",d:"09-01",star:false,ts:now()-3,summary:"国企效益边际企稳，营收端保持增长。",link:"https://xnews.jin10.com/details/228759"},
+    {id:id(),t:"七部门发文推动商品消费：破除汽车限购限制，用好个人消费贷款贴息",cat:"policy",src:"华尔街见闻",d:"09-01",star:true,ts:now()-4,summary:"从破除流通限制、完善废旧家电回收、布局充电设施全链条发力，支撑大宗消费更新。",link:"https://www.163.com/dy/article/L5NMEE3705198NMR.html"},
+    {id:id(),t:"国常会部署规范招商引资，强调优化营商环境、培育产业生态",cat:"policy",src:"央视/华尔街见闻",d:"09-01",star:false,ts:now()-5,summary:"明确鼓励与禁止的具体行为，依法组织税收征管、规范税务执法、保护纳税人权益。",link:"https://www.163.com/dy/article/L5NMEE3705198NMR.html"},
+    {id:id(),t:"美伊冲突升级：伊朗打击约旦境内美军目标，特朗普威胁回应，油价飙涨",cat:"macro",src:"金十/华尔街见闻",d:"09-01",star:true,ts:now()-6,summary:"市场担忧供应中断，WTI一度逼近86美元，布伦特重回90美元上方。",link:"https://xnews.jin10.com/details/228759"},
+    {id:id(),t:"沃什称通胀容忍度不高，9月加息概率升至60%，美债收益率上行",cat:"macro",src:"宏观股指",d:"09-01",star:false,ts:now()-7,summary:"10年美债收益率升至4.76%附近，油价与长债同步抬升强化通胀与加息担忧。",link:"https://xnews.jin10.com/details/228759"},
+    {id:id(),t:"美股：道指-2.80%、纳指+1.40%、标普+0.50%；特斯拉+5.5%、英伟达+1%",cat:"macro",src:"华尔街见闻",d:"09-01",star:false,ts:now()-8,summary:"道指承压、纳指与标普小幅收涨，指数分化明显；8月仍整体累涨。",link:"https://www.163.com/dy/article/L5NMEE3705198NMR.html"},
+    {id:id(),t:"港股8/31：恒指25566.99 -0.07%，恒生科技+0.32%，阿里-W跌约4%",cat:"macro",src:"国际金融报/aastocks",d:"09-01",star:false,ts:now()-9,summary:"科网分化，腾讯+0.72%、小米-7.28%；大市成交温和。",link:"https://quotes.aastocks.com/sc/stocks/news/aafn-con/NOW.1536041/popular-news/AAFN"},
+    {id:id(),t:"A股8/31：上证3986.30 +2.50%、深证成指-3.90%、创业板-10.40%、科创50+1.34%",cat:"macro",src:"华尔街见闻",d:"09-01",star:true,ts:now()-10,summary:"权重托底、成长剧烈分化，创业板单日重挫逾10%，风险偏好结构性切换。",link:"https://www.163.com/dy/article/L5NMEE3705198NMR.html"},
+    {id:id(),t:"黄金两连跌，COMEX金4498.1、现货金4447；原油WTI85.76、布伦特90.49",cat:"macro",src:"金十/华尔街见闻",d:"09-01",star:false,ts:now()-11,summary:"地缘紧张推升油价，贵金属消化加息预期震荡偏弱。",link:"https://xnews.jin10.com/details/228759"},
+    {id:id(),t:"LME铜14285 -0.15%、伦铝3242 +0.56%、沪铜109350 +0.62%",cat:"ind",src:"同花顺/国际金融报",d:"09-01",star:false,ts:now()-12,summary:"伦铝库存去至历史低位警惕逼仓；铜高位偏强，宏观与基本面共振。",link:"https://news.10jqka.com.cn/20260901/c679464614.shtml"},
+    {id:id(),t:"智利铜产量降至2011年以来同期最低，暴风雪重创矿业",cat:"ind",src:"国际金融报",d:"09-01",star:false,ts:now()-13,summary:"供给端扰动支撑铜价，海外挤仓担忧延续。",link:"https://news.10jqka.com.cn/20260901/c679464614.shtml"},
+    {id:id(),t:"商务部等7部门：到2030年社会消费品零售总额达60万亿元左右",cat:"policy",src:"商务部",d:"09-01",star:false,ts:now()-14,summary:"完善现代商贸流通体系，扩大高质量供给。",link:"https://www.mofcom.gov.cn/"},
+    {id:id(),t:"欧盟将对ChatGPT等3家美国服务平台加强监管",cat:"ind",src:"国际金融报",d:"09-01",star:false,ts:now()-15,summary:"欧盟强化对大型美国科技平台的合规要求。",link:"https://commission.europa.eu/"},
+    {id:id(),t:"马斯克太阳能计划引发Howmet、GE Vernova及西门子股价下跌",cat:"ind",src:"国际金融报",d:"09-01",star:false,ts:now()-16,summary:"新能源产业链竞争格局受扰动。",link:"https://www.163.com/dy/article/L5NMEE3705198NMR.html"},
+    {id:id(),t:"摩根大通：不同非农结果下美股下跌几率更大",cat:"macro",src:"国际金融报",d:"09-01",star:false,ts:now()-17,summary:"机构对9月非农情景推演偏谨慎。",link:"https://www.163.com/dy/article/L5NMEE3705198NMR.html"},
+    {id:id(),t:"上半年2318家沪市公司合计营收26.2万亿元，同比+6.3%",cat:"macro",src:"国际金融报",d:"09-01",star:false,ts:now()-18,summary:"沪市公司业绩韧性显现。",link:"https://www.sse.com.cn/"},
+    {id:id(),t:"美国8月失业率初步预测4.1%",cat:"macro",src:"富邦投顾",d:"09-01",star:false,ts:now()-19,summary:"本周非农为关键变量，影响美联储路径。",link:"https://fund.taipeifubon.com.tw/R/other/othernews_C_B_1.djhtm"},
+    {id:id(),t:"碳酸锂主力收于161000元/吨，资源端扰动、强现实延续",cat:"ind",src:"宏观股指",d:"09-01",star:false,ts:now()-20,summary:"雅保盐湖罢工、枧下窝复产不及预期，库存去化快，锂价偏强。",link:"https://news.10jqka.com.cn/20260901/c679464614.shtml"},
+    {id:id(),t:"沪铝主力收24075，伦铝超低库存警惕逼仓",cat:"ind",src:"宏观股指",d:"09-01",star:false,ts:now()-21,summary:"海外供应紧张，国内社库延续去化但铝棒累库。",link:"https://news.10jqka.com.cn/20260901/c679464614.shtml"},
+    {id:id(),t:"8月金银铜油均连涨两月，原油两月累涨超20%",cat:"macro",src:"华尔街见闻",d:"09-01",star:false,ts:now()-22,summary:"商品全面走强，通胀压力再起。",link:"https://www.163.com/dy/article/L5NMEE3705198NMR.html"},
+    {id:id(),t:"国常会：依法组织税收征管，规范税务执法，保护纳税人权益",cat:"policy",src:"华尔街见闻",d:"09-01",star:false,ts:now()-23,summary:"着力优化纳税服务，促进税负公平、完善财税治理。",link:"https://www.163.com/dy/article/L5NMEE3705198NMR.html"},
+    {id:id(),t:"高技术制造业PMI维持52.9%高景气，支撑半导体/AI硬件",cat:"ind",src:"宏观股指",d:"09-01",star:false,ts:now()-24,summary:"财政脉冲效果显现，成长方向获基本面支撑。",link:"https://www.miit.gov.cn/"},
+    {id:id(),t:"人民币中间价6.7828，在岸6.7198，美元指数99.41 -0.27%",cat:"macro",src:"国际金融报",d:"09-01",star:false,ts:now()-25,summary:"美元走弱，人民币小幅升值。",link:"https://www.chinamoney.com.cn/"},
+    {id:id(),t:"央行发布2026年Q2货币政策执行报告：继续实施适度宽松货币政策",cat:"policy",src:"央行",d:"08-28",star:true,ts:now()-26,summary:"综合运用多种工具保持流动性充裕，推动社会综合融资成本低位运行。",link:"https://www.pbc.gov.cn/"},
+    {id:id(),t:"央行等七部门联合印发《关于金融支持新型工业化的指导意见》",cat:"policy",src:"信用中国",d:"08-15",star:true,ts:now()-27,summary:"到2027年基本成熟支持制造业高端化智能化绿色化的金融体系，单列制造业信贷计划。",link:"http://www.creditchina.gov.cn/"},
+    {id:id(),t:"发改委印发《石油天然气发展“十五五”规划》",cat:"policy",src:"发改委",d:"08-20",star:false,ts:now()-28,summary:"明确十五五期间油气增储上产、管网建设与安全保供等重点任务。",link:"https://www.ndrc.gov.cn/"},
+    {id:id(),t:"发改委印发《煤炭工业发展“十五五”规划》",cat:"policy",src:"发改委",d:"08-10",star:false,ts:now()-29,summary:"推动煤炭清洁高效利用与智能化建设，保障能源安全。",link:"https://www.ndrc.gov.cn/"},
+    {id:id(),t:"发改委印发《新型电力系统建设“十五五”规划》",cat:"policy",src:"发改委",d:"08-03",star:false,ts:now()-30,summary:"统筹源网荷储，加快新型电力系统构建与绿电消纳。",link:"https://www.ndrc.gov.cn/"},
+    {id:id(),t:"2026年第23号公告：支持集成电路、工业母机产业高质量发展",cat:"policy",src:"财政部等四部门",d:"08-14",star:false,ts:now()-31,summary:"清单内企业非货币性资产交换收益可5年内分期缴企业所得税。",link:"https://www.mof.gov.cn/"},
+    {id:id(),t:"工信部、应急管理部印发《安全应急装备产业“十五五”规划》",cat:"policy",src:"工信部",d:"08-13",star:false,ts:now()-32,summary:"2030年重点领域产业规模破1.4万亿元，培育优势产业集群。",link:"https://www.miit.gov.cn/"},
+    {id:id(),t:"工信部等六部门开展2026年度智能工厂梯度培育行动",cat:"policy",src:"工信部",d:"08-07",star:false,ts:now()-33,summary:"推动制造业数智化转型升级，加快发展新一代智能制造。",link:"https://www.miit.gov.cn/"},
+    {id:id(),t:"工信部组织开展国家级零碳工厂建设工作",cat:"policy",src:"工信部",d:"08-07",star:false,ts:now()-34,summary:"落实零碳工厂建设指导意见，开展首批申报与培育。",link:"https://www.miit.gov.cn/"},
+    {id:id(),t:"新一代人工智能国家科技重大专项2026“以赛代评”指南发布",cat:"policy",src:"AI重大专项",d:"08-07",star:false,ts:now()-35,summary:"以赛代评公开项目申报，加快AI关键技术攻关与产业化。",link:"https://www.miit.gov.cn/"},
+    {id:id(),t:"工信部等七部门启动工业和信息化领域创新任务“揭榜挂帅”",cat:"policy",src:"工信部",d:"08-07",star:false,ts:now()-36,summary:"以关键技术攻关推动产业高质量发展，首批任务发布。",link:"https://www.miit.gov.cn/"},
+    {id:id(),t:"发改委：2026年农产品进口关税配额再分配公告（第4号）",cat:"policy",src:"发改委",d:"08-17",star:false,ts:now()-37,summary:"开展农产品进口关税配额再分配，保障国内市场供给。",link:"https://www.ndrc.gov.cn/"},
+    {id:id(),t:"中医药振兴发展“十五五”规划发布",cat:"policy",src:"发改委/中医药局",d:"07-23",star:false,ts:now()-38,summary:"推动中医药传承创新发展。",link:"https://www.ndrc.gov.cn/"},
+    {id:id(),t:"可再生能源发展“十五五”规划答记者问",cat:"policy",src:"发改委/能源局",d:"07-23",star:false,ts:now()-39,summary:"加快可再生能源高比例消纳与基地建设。",link:"https://www.ndrc.gov.cn/"},
+    {id:id(),t:"国资委部署下半年六大任务，加快打造新兴支柱产业",cat:"policy",src:"国资委",d:"08-06",star:false,ts:now()-40,summary:"遴选实施新一批“百大工程”，推动产业深度转型升级。",link:"https://www.sasac.gov.cn/"},
+    {id:id(),t:"开展2026年科技型企业孵化器申报（标准级/卓越级）",cat:"policy",src:"工信部",d:"08-07",star:false,ts:now()-41,summary:"加强孵化器培育，推动科技型企业高质量发展。",link:"https://www.miit.gov.cn/"},
+    {id:id(),t:"大千生态：新华发行集团拟减持不超1%股份",cat:"ind",src:"证券时报",d:"08-10",star:false,ts:now()-42,summary:"持股8.06%股东计划15个交易日后3个月内集中竞价减持不超135.72万股。",link:"https://www.stcn.com/"},
+    {id:id(),t:"长龄液压：股东拟合计减持不超3%股份",cat:"ind",src:"证券时报",d:"08-10",star:false,ts:now()-43,summary:"总经理及员工持股平台计划减持合计不超560.97万股。",link:"https://www.stcn.com/"},
+    {id:id(),t:"昂立教育：上海长甲投资拟减持不超3%",cat:"ind",src:"证券时报",d:"08-06",star:false,ts:now()-44,summary:"一致行动人合计持股14.84%，计划3个月内减持不超3%。",link:"https://www.stcn.com/"},
+    {id:id(),t:"中研股份：股东拟减持不超1%",cat:"ind",src:"证券时报",d:"08-05",star:false,ts:now()-45,summary:"股东及一致行动人拟集中竞价减持不超121.68万股。",link:"https://www.stcn.com/"},
+    {id:id(),t:"晶丰明源：拟6000万-1.2亿元回购股份",cat:"ind",src:"证券时报",d:"08-05",star:false,ts:now()-46,summary:"回购用于维护公司价值及股东权益，价格不超239.71元/股。",link:"https://www.stcn.com/"},
+    {id:id(),t:"中农立华：股东拟减持不超2%",cat:"ind",src:"证券时报",d:"08-05",star:false,ts:now()-47,summary:"广东益隆投资拟减持不超537.6万股。",link:"https://www.stcn.com/"},
+    {id:id(),t:"兰州银行：部分董高拟合计增持不低于600万元",cat:"ind",src:"证券时报",d:"08-05",star:false,ts:now()-48,summary:"董事长、行长等管理层拟集中竞价增持，彰显信心。",link:"https://www.stcn.com/"},
+    {id:id(),t:"长虹美菱：控股股东一致行动人拟增持B股1350万-2700万股",cat:"ind",src:"证券时报",d:"08-20",star:false,ts:now()-49,summary:"香港长虹计划6个月内增持B股，已首次增持117.33万股。",link:"https://www.stcn.com/"},
+    {id:id(),t:"无锡银行：股东拟合计减持不超1.96%",cat:"ind",src:"证券时报",d:"08-05",star:false,ts:now()-50,summary:"兴达尼龙、神伟化工一致行动人拟大宗交易减持。",link:"https://www.stcn.com/"}
+  ];
+  state.index=[
+    {id:id(),name:"上证指数",val:3986.30,chg:2.50,pre:3889.56},
+    {id:id(),name:"深证成指",val:14015.00,chg:-3.90,pre:14583.77},
+    {id:id(),name:"创业板指",val:3438.68,chg:-10.40,pre:3836.92},
+    {id:id(),name:"科创50",val:1198.20,chg:1.34,pre:1182.35},
+    {id:id(),name:"沪深300",val:4377.76,chg:0.60,pre:4351.60},
+    {id:id(),name:"贵州茅台",val:1501.00,chg:1.00,pre:1486.14,est:true},
+    {id:id(),name:"宁德时代",val:188.30,chg:0.80,pre:186.80,est:true},
+    {id:id(),name:"比亚迪",val:248.60,chg:0.50,pre:247.36,est:true}
+  ];
+  state.hold=[
+    {id:id(),name:"长虹美菱",dir:"add",pct:0,date:"08-20",note:"控股股东一致行动人拟增持B股1350万-2700万股"},
+    {id:id(),name:"兰州银行",dir:"add",pct:0,date:"08-05",note:"部分董高拟合计增持不低于600万元"},
+    {id:id(),name:"新宝股份",dir:"add",pct:0,date:"08-05",note:"控股股东拟5000万-8000万增持"},
+    {id:id(),name:"中国建筑",dir:"add",pct:0,date:"08-07",note:"中建集团拟增持5亿-10亿，获工行9亿贷款承诺"},
+    {id:id(),name:"晶华微",dir:"add",pct:0,date:"08-07",note:"实控人拟增持1200万-2400万"},
+    {id:id(),name:"晶丰明源",dir:"add",pct:0,date:"08-05",note:"拟6000万-1.2亿回购股份"},
+    {id:id(),name:"渤海租赁",dir:"add",pct:0,date:"08-07",note:"拟不超6.48元/股回购2亿元"},
+    {id:id(),name:"大千生态",dir:"cut",pct:1.00,date:"08-10",note:"新华发行集团拟减持不超1%"},
+    {id:id(),name:"长龄液压",dir:"cut",pct:3.00,date:"08-10",note:"股东拟合计减持不超3%"},
+    {id:id(),name:"昂立教育",dir:"cut",pct:3.00,date:"08-06",note:"上海长甲投资拟减持不超3%"},
+    {id:id(),name:"中研股份",dir:"cut",pct:1.00,date:"08-05",note:"股东拟减持不超1%"},
+    {id:id(),name:"中农立华",dir:"cut",pct:2.00,date:"08-05",note:"股东拟减持不超2%"},
+    {id:id(),name:"无锡银行",dir:"cut",pct:1.96,date:"08-05",note:"股东拟合计减持不超1.96%"},
+    {id:id(),name:"永新光学",dir:"cut",pct:0.602,date:"08-14",note:"加茂资讯拟减持不超0.602%"},
+    {id:id(),name:"中复神鹰",dir:"cut",pct:1.30,date:"08-14",note:"鹰游科技拟减持不超1.3%"},
+    {id:id(),name:"美迪西",dir:"cut",pct:1.68,date:"08-14",note:"股东拟减持不超1.68%"},
+    {id:id(),name:"永杰新材",dir:"cut",pct:3.00,date:"08-11",note:"股东拟合计减持不超3%"}
+  ];
+  state.stocks=[];
+  state.us=[
+    {id:id(),name:"道琼斯",val:53185.90,chg:-2.80},
+    {id:id(),name:"纳斯达克",val:26370.89,chg:1.40},
+    {id:id(),name:"标普500",val:7686.14,chg:0.50}
+  ];
+  state.hk=[
+    {id:id(),name:"恒生指数",val:25566.99,chg:-0.07},
+    {id:id(),name:"恒生科技",val:4619.87,chg:0.32},
+    {id:id(),name:"国企指数",val:8513.18,chg:0.27},
+    {id:id(),name:"阿里巴巴-W",val:113.57,chg:-4.00,est:true},
+    {id:id(),name:"腾讯控股",val:385.20,chg:0.72,est:true}
+  ];
+  state.cmd=[
+    {id:id(),name:"COMEX黄金",val:4498.10,chg:0.37,unit:"美元/盎司"},
+    {id:id(),name:"现货黄金",val:4447.07,chg:-0.26,unit:"美元/盎司"},
+    {id:id(),name:"WTI原油",val:85.76,chg:2.83,unit:"美元/桶"},
+    {id:id(),name:"布伦特原油",val:90.49,chg:2.71,unit:"美元/桶"},
+    {id:id(),name:"伦铜(LME)",val:14285,chg:-0.15,unit:"美元/吨"},
+    {id:id(),name:"伦铝(LME)",val:3242,chg:0.56,unit:"美元/吨"},
+    {id:id(),name:"沪铜",val:109350,chg:0.62,unit:"元/吨"},
+    {id:id(),name:"沪铝",val:20120,chg:1.30,unit:"元/吨",est:true},
+    {id:id(),name:"碳酸锂",val:161000,chg:1.20,unit:"元/吨",est:true}
+  ];
+  state.watch=WATCH_SEED.map(x=>({...x,days:x.days.map(d=>({...d}))}));
+  state.trends={
+    sh:genSeries(3986.30,30,0.016),
+    sz:genSeries(14015.00,30,0.018),
+    cyb:genSeries(3438.68,30,0.022),
+    dow:genSeries(53185.90,30,0.010),
+    nas:genSeries(26370.89,30,0.014),
+    sp:genSeries(7686.14,30,0.011),
+    hsi:genSeries(25566.99,30,0.015)
+  };
+  // 标记示例数据
+  Object.keys(state).forEach(k=>{if(Array.isArray(state[k]))state[k].forEach(o=>{if(o&&typeof o==="object")o._sample=true;});});
+}
+
+/* 内置个股库（示例值，截至2026-09-01；open=开盘价 close=收盘价，涨跌幅由二者推算；可手动更新） */
+const STOCK_DB=[
+  {code:"600519",name:"贵州茅台",open:1486.14,close:1501.00},
+  {code:"300750",name:"宁德时代",open:186.80,close:188.30},
+  {code:"002594",name:"比亚迪",open:247.36,close:248.60},
+  {code:"601318",name:"中国平安",open:52.09,close:52.30},
+  {code:"600036",name:"招商银行",open:41.97,close:42.10},
+  {code:"000858",name:"五粮液",open:139.36,close:140.20},
+  {code:"000333",name:"美的集团",open:75.02,close:75.40},
+  {code:"000651",name:"格力电器",open:40.02,close:40.10},
+  {code:"300059",name:"东方财富",open:27.96,close:28.30},
+  {code:"600030",name:"中信证券",open:28.06,close:28.20},
+  {code:"600887",name:"伊利股份",open:28.02,close:28.10},
+  {code:"603288",name:"海天味业",open:41.93,close:42.10},
+  {code:"601012",name:"隆基绿能",open:18.02,close:18.20},
+  {code:"000725",name:"京东方A",open:4.19,close:4.22},
+  {code:"002475",name:"立讯精密",open:37.76,close:38.10},
+  {code:"600031",name:"三一重工",open:18.01,close:18.10},
+  {code:"600276",name:"恒瑞医药",open:50.00,close:50.20},
+  {code:"000568",name:"泸州老窖",open:134.16,close:135.10},
+  {code:"002352",name:"顺丰控股",open:41.97,close:42.10},
+  {code:"601899",name:"紫金矿业",open:17.90,close:18.10},
+  {code:"600900",name:"长江电力",open:28.04,close:28.10},
+  {code:"601088",name:"中国神华",open:37.99,close:38.10},
+  {code:"601398",name:"工商银行",open:6.79,close:6.81},
+  {code:"601288",name:"农业银行",open:5.20,close:5.21},
+  {code:"601939",name:"建设银行",open:8.39,close:8.41},
+  {code:"601857",name:"中国石油",open:9.46,close:9.51},
+  {code:"600028",name:"中国石化",open:6.79,close:6.81},
+  {code:"600941",name:"中国移动",open:109.98,close:110.20},
+  {code:"000002",name:"万科A",open:7.47,close:7.51},
+  {code:"600048",name:"保利发展",open:9.47,close:9.51},
+  {code:"002371",name:"北方华创",open:414.79,close:421.00},
+  {code:"688981",name:"中芯国际",open:93.24,close:95.10},
+  {code:"603501",name:"韦尔股份",open:109.11,close:110.20},
+  {code:"300124",name:"汇川技术",open:64.58,close:65.10},
+  {code:"300274",name:"阳光电源",open:93.98,close:95.10},
+  {code:"600438",name:"通威股份",open:21.88,close:22.10},
+  {code:"600703",name:"三安光电",open:12.99,close:13.10},
+  {code:"002241",name:"歌尔股份",open:24.85,close:25.10},
+  {code:"300015",name:"爱尔眼科",open:13.04,close:13.10},
+  {code:"603259",name:"药明康德",open:69.68,close:70.10},
+  {code:"002304",name:"洋河股份",open:84.68,close:85.10},
+  {code:"002415",name:"海康威视",open:29.98,close:30.10},
+  {code:"600009",name:"上海机场",open:35.10,close:35.60},
+  {code:"601888",name:"中国中免",open:68.50,close:69.80},
+  {code:"300760",name:"迈瑞医疗",open:248.00,close:252.30},
+  {code:"601668",name:"中国建筑",open:5.40,close:5.46},
+  {code:"000001",name:"平安银行",open:11.20,close:11.35},
+  {code:"601166",name:"兴业银行",open:17.30,close:17.55},
+  {code:"600000",name:"浦发银行",open:9.60,close:9.75},
+  {code:"600016",name:"民生银行",open:3.85,close:3.90},
+  {code:"601628",name:"中国人寿",open:38.50,close:39.10},
+  {code:"601601",name:"中国太保",open:32.20,close:32.80},
+  {code:"600837",name:"海通证券",open:9.80,close:9.95},
+  {code:"601211",name:"国泰君安",open:15.60,close:15.85},
+  {code:"000776",name:"广发证券",open:14.20,close:14.45},
+  {code:"002142",name:"宁波银行",open:26.50,close:26.95},
+  {code:"600660",name:"福耀玻璃",open:52.30,close:53.10},
+  {code:"601633",name:"长城汽车",open:22.10,close:22.60},
+  {code:"600104",name:"上汽集团",open:14.80,close:15.05},
+  {code:"000625",name:"长安汽车",open:12.60,close:12.85},
+  {code:"601238",name:"广汽集团",open:8.20,close:8.35},
+  {code:"600690",name:"海尔智家",open:25.60,close:26.05},
+  {code:"000100",name:"TCL科技",open:4.10,close:4.18},
+  {code:"600745",name:"闻泰科技",open:35.20,close:35.90},
+  {code:"603986",name:"兆易创新",open:98.50,close:100.80},
+  {code:"688041",name:"海光信息",open:145.00,close:149.50},
+  {code:"688599",name:"天合光能",open:22.50,close:22.95},
+  {code:"300316",name:"晶盛机电",open:32.10,close:32.75},
+  {code:"002129",name:"TCL中环",open:9.20,close:9.40},
+  {code:"600089",name:"特变电工",open:12.30,close:12.55},
+  {code:"601390",name:"中国中铁",open:6.10,close:6.22},
+  {code:"601186",name:"中国铁建",open:7.80,close:7.95},
+  {code:"600170",name:"上海建工",open:2.40,close:2.45},
+  {code:"601800",name:"中国交建",open:8.90,close:9.08},
+  {code:"000063",name:"中兴通讯",open:28.60,close:29.15},
+  {code:"600050",name:"中国联通",open:5.30,close:5.40},
+  {code:"601728",name:"中国电信",open:6.10,close:6.22},
+  {code:"002230",name:"科大讯飞",open:42.80,close:43.70},
+  {code:"688111",name:"金山办公",open:265.00,close:270.50},
+  {code:"300033",name:"同花顺",open:110.00,close:112.50},
+  {code:"600570",name:"恒生电子",open:28.40,close:28.95},
+  {code:"002027",name:"分众传媒",open:6.50,close:6.62},
+  {code:"601021",name:"春秋航空",open:52.00,close:53.10},
+  {code:"600029",name:"南方航空",open:5.80,close:5.92},
+  {code:"601111",name:"中国国航",open:7.20,close:7.35}
+];
+
+function id(){return Math.random().toString(36).slice(2,9)}
+function now(){return Date.now()}
+function fmtDate(d){const x=new Date(d);const p=n=>String(n).padStart(2,"0");return `${x.getFullYear()}-${p(x.getMonth()+1)}-${p(x.getDate())}`}
+
+/* ============ 渲染 ============ */
+function cls(chg){return chg>0?"up":chg<0?"down":"flat"}
+function sign(chg){return chg>0?"+":""}
+function chgOf(s){if(s&&s.close!=null&&s.open)return (s.close-s.open)/s.open*100;if(s&&s.chg!=null)return s.chg;return 0;}
+function catName(c){return c==="policy"?"政策":c==="macro"?"宏观":c==="ind"?"行业":"行业"}
+
+function renderCatalog(){
+  $("#catDate").textContent=DATA_DATE;
+  const policyN=state.news.filter(n=>n.cat==="policy").length;
+  const sh=state.index.find(x=>x.name==="上证指数");
+  const sz=state.index.find(x=>x.name==="深证成指");
+  const us=state.us;const hk=state.hk.find(x=>x.name==="恒生指数");
+  const gold=state.cmd.find(x=>x.name==="COMEX黄金");
+  const wti=state.cmd.find(x=>x.name==="WTI原油");
+  const grid=$("#catGrid");
+  const card=(icon,title,val,sub,top,click)=>`<div class="catCard" ${click?`data-go="${click}"`:''} style="cursor:${click?'pointer':'default'}">
+      <div class="ct">${icon}${title}</div><div class="cv ${val.cls||''}">${val.t}</div><div class="cd">${sub}</div></div>`;
+  grid.innerHTML=
+    card('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/></svg>',
+      "财经新闻",{t:`${state.news.length} 条`,cls:""},`政策 ${policyN} · 宏观/行业 ${state.news.length-policyN}`,"catalog","news")+
+    card('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/></svg>',
+      "A股（上证）",{t:sh?sh.val.toLocaleString():"—",cls:sh?cls(sh.chg):""},sh?`${sign(sh.chg)}${sh.chg.toFixed(2)}% · 深证 ${sz?sign(sz.chg)+sz.chg.toFixed(2)+'%':''}`:"", "today","ashare")+
+    card('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg>',
+      "美股（道指）",{t:us[0]?us[0].val.toLocaleString():"—",cls:us[0]?cls(us[0].chg):""},us[0]?`${sign(us[0].chg)}${us[0].chg.toFixed(2)}% · 纳指 ${us[1]?sign(us[1].chg)+us[1].chg.toFixed(2)+'%':''}`:"","today","global")+
+    card('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21V8l9-5 9 5v13"/></svg>',
+      "港股（恒指）",{t:hk?hk.val.toLocaleString():"—",cls:hk?cls(hk.chg):""},hk?`${sign(hk.chg)}${hk.chg.toFixed(2)}%`:"","today","global")+
+    card('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18l4-6 4 4 4-8 4 5"/></svg>',
+      "大宗商品",{t:gold?gold.val.toLocaleString():"—",cls:gold?cls(gold.chg):""},`COMEX金 · WTI ${wti?wti.val.toLocaleString():''}`,"today","global")+
+    card('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>',
+      "个股查询",{t:"搜索",cls:""},"输入名称或代码查价","today","stock")+
+    card('<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v5h5"/><path d="M3 12a9 9 0 1 0 3-7L3 8"/></svg>',
+      "历史存档",{t:`${state.history.length} 条`,cls:""},"回看往日全量数据","history","");
+  $$("#catGrid .catCard[data-go]").forEach(c=>c.onclick=()=>{
+    const [top,page]=c.dataset.go.split("/");
+    showTop(top);if(page)switchPage(page);
+  });
+}
+
+function renderNews(){
+  const f=$("#newsChips .chip.active")?.dataset.f||"all";
+  let list=state.news.slice().sort((a,b)=>b.ts-a.ts);
+  if(f==="star")list=list.filter(n=>n.star);
+  else if(f!=="all")list=list.filter(n=>n.cat===f);
+  $("#newsCount").textContent=`共 ${state.news.length} 条 / 显示 ${list.length}`;
+  const el=$("#newsList");el.innerHTML="";
+  if(!list.length){el.innerHTML='<div class="empty">暂无数据，点击下方添加</div>';}
+  list.slice(0,50).forEach((n,i)=>{
+    const c=catName(n.cat);
+    const cls2=n.cat==="policy"?"policy":n.cat==="macro"?"macro":"ind";
+    const d=document.createElement("div");d.className="news";
+    d.innerHTML=`<div class="idx">${i+1}</div>
+      <div class="body">
+        <div class="title">${esc(n.t)}</div>
+        ${n.summary?`<div class="summary">${esc(n.summary)}</div>`:''}
+        <div class="tags">
+          <span class="tag ${cls2}">${c}</span>
+          ${n.star?'<span class="tag star">★ 重要</span>':''}
+          <span class="src">${esc(n.src||"未知来源")}${n.d?' · '+esc(n.d):''}</span>
+        </div>
+        <div class="act">
+          ${n.link?`<a class="linkBtn" href="${esc(n.link)}" target="_blank" rel="noopener noreferrer">查看详情 →</a>`:''}
+          <button class="${n.star?'on':''}" data-star="${n.id}">${n.star?'★ 已标星':'☆ 标星'}</button>
+          <button data-del="${n.id}">删除</button>
+        </div>
+      </div>`;
+    el.appendChild(d);
+  });
+  $$("#newsList [data-star]").forEach(b=>b.onclick=()=>{
+    const n=state.news.find(x=>x.id===b.dataset.star);n.star=!n.star;save();renderNews();renderDonut();
+  });
+  $$("#newsList [data-del]").forEach(b=>b.onclick=()=>{
+    state.news=state.news.filter(x=>x.id!==b.dataset.del);save();renderNews();renderDonut();
+  });
+  renderDonut();
+}
+function renderDonut(){
+  const cats=["policy","macro","ind"];
+  const cnt=cats.map(c=>state.news.filter(n=>n.cat===c).length);
+  const total=cnt.reduce((a,b)=>a+b,0)||1;
+  const colors=["#c8841a","#3a6ea5","#3a8a55"];
+  const labels=["政策","宏观","行业"];
+  const R=42,C=2*Math.PI*R;let off=0;let segs="";
+  cats.forEach((c,i)=>{
+    const len=total?cnt[i]/total*C:0;
+    segs+=`<circle r="${R}" cx="52" cy="52" fill="none" stroke="${colors[i]}" stroke-width="14"
+      stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 52 52)"/>`;
+    off+=len;
+  });
+  $("#newsDonut").innerHTML=`<svg viewBox="0 0 104 104" width="104" height="104">
+    <circle r="${R}" cx="52" cy="52" fill="none" stroke="#eef1f6" stroke-width="14"/>
+    ${segs}<text x="52" y="50" text-anchor="middle" font-size="15" font-weight="700" fill="#1c2530">${state.news.length}</text>
+    <text x="52" y="64" text-anchor="middle" font-size="9" fill="#6b7785">条</text></svg>`;
+  $("#newsLegend").innerHTML=cats.map((c,i)=>
+    `<div class="k"><span class="sw" style="background:${colors[i]}"></span>${labels[i]} ${cnt[i]}</div>`).join("");
+}
+function renderIndex(){
+  $("#ashareDate").textContent=state.ashareMeta?state.ashareMeta.date:"";
+  const t=$("#indexTable");
+  t.innerHTML=`<thead><tr><th>名称</th><th>最新</th><th>涨跌幅</th><th>昨收</th></tr></thead><tbody>
+    ${state.index.map(x=>`<tr><td>${esc(x.name)}${x.est?' <span style="color:#9aa6b3;font-size:10px">估</span>':''}</td><td>${x.val.toLocaleString()}</td>
+      <td class="${cls(x.chg)}">${sign(x.chg)}${x.chg.toFixed(2)}%</td><td>${x.pre.toLocaleString()}</td></tr>`).join("")}
+  </tbody>`;
+  const max=Math.max(...state.index.map(x=>Math.abs(x.chg)),0.1);
+  $("#indexBars").innerHTML=state.index.map(x=>{
+    const w=Math.abs(x.chg)/max*100;const c=x.chg>0?"var(--up)":x.chg<0?"var(--down)":"#bbb";
+    return `<div class="barRow"><span class="lbl">${esc(x.name)}</span>
+      <div class="barTrack"><div class="barFill" style="width:${w}%;background:${c}"></div></div>
+      <span class="num ${cls(x.chg)}">${sign(x.chg)}${x.chg.toFixed(2)}%</span></div>`;
+  }).join("");
+}
+function renderHold(){
+  $("#holdCount").textContent=`共 ${state.hold.length} 条`;
+  const el=$("#holdList");el.innerHTML="";
+  if(!state.hold.length){el.innerHTML='<div class="empty">暂无增持减持公告</div>';}
+  state.hold.forEach(h=>{
+    const d=document.createElement("div");d.className="li";
+    d.innerHTML=`<span class="pill ${h.dir==='add'?'add':'cut'}">${h.dir==='add'?'增持':'减持'}</span>
+      <div style="flex:1"><div class="name">${esc(h.name)}</div>
+      <div class="desc">${h.dir==='add'?(h.pct?h.pct+'% 增持':'增持'):h.pct+'% 减持'} · ${esc(h.date||"")} · ${esc(h.note||"")}</div></div>
+      <button class="tBtn" data-del="${h.id}" style="background:#eef1f6;color:#9aa6b3;min-height:34px">删</button>`;
+    el.appendChild(d);
+  });
+  $$("#holdList [data-del]").forEach(b=>b.onclick=()=>{
+    state.hold=state.hold.filter(x=>x.id!==b.dataset.del);save();renderHold();
+  });
+}
+function renderGlobal(){
+  $("#usDate").textContent=state.usMeta?.date||"";
+  $("#usList").innerHTML=state.us.map(x=>`<div class="li"><span class="name">${esc(x.name)}</span>
+    <span class="val ${cls(x.chg)}">${x.val.toLocaleString()} <small>${sign(x.chg)}${x.chg.toFixed(2)}%</small></span></div>`).join("");
+  const max=Math.max(...state.us.map(x=>Math.abs(x.chg)),0.1);
+  $("#usBars").innerHTML=state.us.map(x=>{
+    const w=Math.abs(x.chg)/max*100;const c=x.chg>0?"var(--up)":x.chg<0?"var(--down)":"#bbb";
+    return `<div class="barRow"><span class="lbl">${esc(x.name)}</span>
+      <div class="barTrack"><div class="barFill" style="width:${w}%;background:${c}"></div></div>
+      <span class="num ${cls(x.chg)}">${sign(x.chg)}${x.chg.toFixed(2)}%</span></div>`;
+  }).join("");
+  $("#usStreak").innerHTML=state.usMeta?`🔥 ${esc(state.usMeta.streakUp)} ｜ 主涨：<b style="color:var(--up)">${esc(state.usMeta.lead)}</b> ｜ 主跌：<b style="color:var(--down)">${esc(state.usMeta.lag)}</b>`:"";
+  $("#hkDate").textContent=(state.hkMeta?.date||"")+(state.hkMeta?.note?" ｜ "+state.hkMeta.note:"");
+  $("#hkList").innerHTML=state.hk.map(x=>`<div class="li"><span class="name">${esc(x.name)}${x.est?' <span style="color:#9aa6b3;font-size:10px">估</span>':''}</span>
+    <span class="val ${cls(x.chg)}">${x.val.toLocaleString()} <small>${sign(x.chg)}${x.chg.toFixed(2)}%</small></span></div>`).join("");
+  $("#cmdList").innerHTML=state.cmd.map(x=>`<div class="li"><span class="name">${esc(x.name)}</span>
+    <span class="val ${cls(x.chg)}">${x.val.toLocaleString()} <small>${esc(x.unit||"")} ${sign(x.chg)}${x.chg.toFixed(2)}%</small></span></div>`).join("");
+  const maxC=Math.max(...state.cmd.map(x=>Math.abs(x.chg)),0.1);
+  $("#cmdBars").innerHTML='<div class="barRow"><span class="lbl">涨跌概览</span></div>'+state.cmd.map(x=>{
+    const w=Math.abs(x.chg)/maxC*100;const c=x.chg>0?"var(--up)":x.chg<0?"var(--down)":"#bbb";
+    return `<div class="barRow"><span class="lbl">${esc(x.name)}</span>
+      <div class="barTrack"><div class="barFill" style="width:${w}%;background:${c}"></div></div>
+      <span class="num ${cls(x.chg)}">${sign(x.chg)}${x.chg.toFixed(2)}%</span></div>`;
+  }).join("");
+}
+function drawSingle(id,data,color){
+  const el=$(id);if(!el||!data||!data.length)return;
+  const W=320,H=110,pad=10;
+  let min=Math.min(...data),max=Math.max(...data);
+  if(max===min){max=min+1;min=min-1;}
+  const n=data.length;
+  const X=i=>pad+i*(W-2*pad)/(n-1);
+  const Y=v=>H-pad-(v-min)/(max-min)*(H-2*pad);
+  let d="M"+X(0).toFixed(1)+" "+Y(data[0]).toFixed(1);
+  for(let i=1;i<n;i++)d+=" L"+X(i).toFixed(1)+" "+Y(data[i]).toFixed(1);
+  el.innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none">
+    <path d="${d}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round"/>
+    <circle cx="${X(n-1).toFixed(1)}" cy="${Y(data[n-1]).toFixed(1)}" r="2.6" fill="${color}"/></svg>`;
+}
+function drawTrend(){
+  if(!state.trends||!state.trends.sh)return;
+  const secs=[
+    {wrap:"#ashareGrid",items:[
+      {name:"上证指数",color:"#e23c3c",data:state.trends.sh,cid:"ash_sh"},
+      {name:"深证成指",color:"#1aa15a",data:state.trends.sz,cid:"ash_sz"},
+      {name:"创业板指",color:"#c8a04a",data:state.trends.cyb,cid:"ash_cyb"}
+    ]},
+    {wrap:"#usGrid",items:[
+      {name:"道琼斯",color:"#e23c3c",data:state.trends.dow,cid:"us_dow"},
+      {name:"纳斯达克",color:"#1aa15a",data:state.trends.nas,cid:"us_nas"},
+      {name:"标普500",color:"#c8a04a",data:state.trends.sp,cid:"us_sp"}
+    ]},
+    {wrap:"#hsiGrid",items:[
+      {name:"恒生指数",color:"#1f4e79",data:state.trends.hsi,cid:"hsi_0"}
+    ]}
+  ];
+  secs.forEach(sec=>{
+    const wrap=$(sec.wrap);if(!wrap)return;
+    wrap.innerHTML=sec.items.map(it=>{
+      const up=it.data[it.data.length-1]>=it.data[0];
+      const pct=((it.data[it.data.length-1]/it.data[0]-1)*100);
+      return `<div class="tCard"><div class="tHead"><span class="tName">${it.name}</span>
+        <span class="tVal ${up?'up':'down'}">${it.data[it.data.length-1].toLocaleString()}</span>
+        <span class="tChg ${up?'up':'down'}">${up?'+':''}${pct.toFixed(1)}%</span></div>
+        <div class="tChart" id="${it.cid}"></div></div>`;
+    }).join("");
+    sec.items.forEach(it=>drawSingle("#"+it.cid,it.data,it.color));
+  });
+}
+
+/* ===== 个股查询 ===== */
+function renderStockResults(){
+  const q=$("#stockSearch").value.trim().toLowerCase();
+  const el=$("#stockResults");
+  if(!q){el.innerHTML='<div class="empty">输入个股名称或代码查询（如 茅台 / 600519 / 宁德），直接带出代码与价格</div>';$("#stockPick").innerHTML="";return;}
+  const pool=STOCK_DB.map(s=>({...s})).concat((state.stocks||[]).map(s=>({...s,_mine:true})));
+  const res=pool.filter(s=>(s.name&&s.name.toLowerCase().includes(q))||(s.code&&s.code.toLowerCase().includes(q))).slice(0,12);
+  if(!res.length){
+    el.innerHTML=`<div class="empty">未找到「${esc(q)}」，可直接加入自选股：</div>
+      <button class="addBtn" id="addFromSearch" style="margin-top:6px">＋ 添加「${esc(q)}」到自选股</button>`;
+    $("#addFromSearch").onclick=()=>stockForm(q);
+    $("#stockPick").innerHTML="";return;
+  }
+  el.innerHTML=res.map(s=>{const c=chgOf(s);return `<div class="li stockRow" data-code="${s.code}">
+    <span class="name">${esc(s.name)} <small style="color:#9aa6b3">${esc(s.code)}</small>${s._mine?' <span class="tag star">自选</span>':''}</span>
+    <span class="val ${cls(c)}">收 ${s.close.toLocaleString()} <small>${sign(c)}${c.toFixed(2)}%</small></span></div>`;}).join("");
+  $$("#stockResults .stockRow").forEach(r=>r.onclick=()=>showStockPick(r.dataset.code));
+}
+function showStockPick(code){
+  const s=STOCK_DB.concat(state.stocks||[]).find(x=>x.code===code);
+  if(!s)return;
+  const c=chgOf(s);
+  $("#stockPick").innerHTML=`<div class="card" style="margin-top:10px"><h3>${esc(s.name)} <span class="sub">${esc(s.code)}</span></h3>
+    <div class="kvRow"><span>开盘价</span><b>${s.open!=null?s.open.toLocaleString():"—"}</b></div>
+    <div class="kvRow"><span>收盘价</span><b>${s.close!=null?s.close.toLocaleString():"—"}</b></div>
+    <div class="kvRow"><span>涨跌幅</span><b class="${cls(c)}">${sign(c)}${c.toFixed(2)}%</b></div>
+    ${s.note?`<div class="hint" style="margin:8px 0 0;text-align:left">${esc(s.note)}</div>`:''}
+    <div class="hint" style="margin:8px 0 0;text-align:left;color:#9aa6b3">开盘/收盘为示例值，仅供参考；以券商终端为准。连接「腾讯自选股 / 东方财富妙想」连接器可自动获取。</div></div>`;
+}
+function renderStockMine(){
+  if(!state.stocks)state.stocks=[];
+  $("#stockCount").textContent=`共 ${state.stocks.length} 只`;
+  const el=$("#stockMine");el.innerHTML="";
+  if(!state.stocks.length){el.innerHTML='<div class="empty">还没有自选股，点上方「＋ 添加 / 更新我的个股」</div>';return;}
+  state.stocks.forEach(s=>{
+    const c=chgOf(s);
+    const d=document.createElement("div");d.className="li stockRow";d.dataset.code=s.code;
+    d.innerHTML=`<span class="name">${esc(s.name)} <small style="color:#9aa6b3">${esc(s.code)}</small></span>
+      <span class="val ${cls(c)}">收 ${s.close!=null?s.close.toLocaleString():"—"} <small>${sign(c)}${c.toFixed(2)}%</small></span>
+      <button class="tBtn" data-del="${s.code}" style="background:#eef1f6;color:#9aa6b3;min-height:34px">删</button>`;
+    el.appendChild(d);
+  });
+  $$("#stockMine .stockRow").forEach(r=>{r.onclick=(e)=>{if(e.target.dataset.del)return;showStockPick(r.dataset.code);};});
+  $$("#stockMine [data-del]").forEach(b=>b.onclick=(e)=>{e.stopPropagation();state.stocks=state.stocks.filter(x=>x.code!==b.dataset.del);save();renderStockMine();});
+}
+
+/* ===== 我的关注股（每日自动跟踪） ===== */
+function renderWatch(){
+  const grid=$("#watchGrid");if(!grid)return;
+  $("#watchUpdated").textContent=state.watch.length?("数据截至 "+state.watch[0].updated):"";
+  grid.innerHTML=state.watch.map((w,i)=>{
+    const closes=w.days.map(d=>d.c);
+    const up=closes[closes.length-1]>=closes[0];
+    const rng=((closes[closes.length-1]/closes[0]-1)*100);
+    const det=w.days.map(d=>`<tr><td style="padding:3px 4px">${d.d}</td><td style="text-align:right;padding:3px 4px">${d.o.toLocaleString()}</td><td style="text-align:right;padding:3px 4px">${d.c.toLocaleString()}</td><td style="text-align:right;padding:3px 4px" class="${d.chg>=0?'up':'down'}">${d.chg>=0?'+':''}${d.chg.toFixed(2)}%</td></tr>`).join("");
+    return `<div class="tCard" data-w="${i}" style="cursor:pointer">
+      <div class="tHead"><span class="tName">${esc(w.name)} <small style="color:#9aa6b3;font-weight:400">${esc(w.code)} · ${esc(w.market)}</small></span>
+        <span class="tVal ${up?'up':'down'}">${w.lastClose.toLocaleString()}</span>
+        <span class="tChg ${up?'up':'down'}">${rng>=0?'+':''}${rng.toFixed(1)}% /10日</span></div>
+      <div class="tChart" id="watch_${i}"></div>
+      <div id="wd_${i}" style="display:none">
+        <table style="width:100%;font-size:12px;margin-top:6px;border-collapse:collapse">
+          <tr><th style="text-align:left;color:#9aa6b3;font-weight:600;padding:3px 4px">日期</th><th style="text-align:right;color:#9aa6b3;font-weight:600;padding:3px 4px">开</th><th style="text-align:right;color:#9aa6b3;font-weight:600;padding:3px 4px">收</th><th style="text-align:right;color:#9aa6b3;font-weight:600;padding:3px 4px">涨跌</th></tr>${det}</table>
+      </div></div>`;
+  }).join("");
+  state.watch.forEach((w,i)=>{
+    const closes=w.days.map(d=>d.c);
+    drawSingle("#watch_"+i,closes,closes[closes.length-1]>=closes[0]?"#e23c3c":"#1aa15a");
+    const card=grid.querySelector('[data-w="'+i+'"]');
+    if(card)card.onclick=()=>{const box=$("#wd_"+i);box.style.display=box.style.display==="none"?"block":"none";};
+  });
+}
+
+/* ===== 历史信息 ===== */
+function renderHistory(){
+  $("#historyCount").textContent=`共 ${state.history.length} 条`;
+  const el=$("#historyList");el.innerHTML="";
+  if(!state.history.length){el.innerHTML='<div class="empty">暂无历史存档。点底部「📌 存档今日快照」保存当前；数据版本更新时也会自动存档。</div>';return;}
+  state.history.forEach(h=>{
+    const s=h.snapshot;
+    const cnt=`新闻${s.news.length} · A股${s.index.length} · 美股${s.us.length} · 港股${s.hk.length} · 商品${s.cmd.length}`;
+    const d=document.createElement("div");d.className="card";
+    d.innerHTML=`<div style="display:flex;align-items:center;gap:8px">
+        <div style="flex:1"><div style="font-weight:700">${esc(h.label)}</div><div class="desc" style="color:var(--sub);font-size:12px">${cnt}</div></div>
+        <button class="tBtn" data-view="${h.id}" style="background:var(--primary-soft);color:var(--primary);min-height:34px">查看</button>
+        <button class="tBtn" data-delh="${h.id}" style="background:#eef1f6;color:#9aa6b3;min-height:34px">删</button></div>
+      <div id="hd-${h.id}" style="display:none;margin-top:10px"></div>`;
+    el.appendChild(d);
+  });
+  $$("#historyList [data-view]").forEach(b=>b.onclick=()=>{
+    const box=$("#hd-"+b.dataset.view);
+    if(box.style.display==="none"){box.innerHTML=historyDetailHTML(state.history.find(x=>x.id===b.dataset.view).snapshot);box.style.display="block";b.textContent="收起";}
+    else{box.style.display="none";b.textContent="查看";}
+  });
+  $$("#historyList [data-delh]").forEach(b=>b.onclick=()=>{state.history=state.history.filter(x=>x.id!==b.dataset.delh);save();renderHistory();});
+}
+function historyDetailHTML(s){
+  let h='';
+  h+=`<div style="font-weight:700;margin:2px 0 4px">财经新闻（${s.news.length}）</div>`+
+    s.news.slice(0,15).map(n=>`<div class="news" style="padding:6px 0"><div class="body"><div class="title" style="font-size:13px">${esc(n.t)}</div><div class="tags"><span class="tag ${n.cat==='policy'?'policy':n.cat==='macro'?'macro':'ind'}">${catName(n.cat)}</span>${n.star?'<span class="tag star">★</span>':''}<span class="src">${esc(n.src||'')}</span></div></div></div>`).join('')+(s.news.length>15?`<div class="desc" style="color:var(--sub)">…等${s.news.length}条</div>`:'');
+  h+=`<div style="font-weight:700;margin:10px 0 4px">A股指标</div><table style="width:100%;font-size:12.5px"><tr><th>名称</th><th>最新</th><th>涨跌幅</th><th>昨收</th></tr>${s.index.map(x=>`<tr><td>${esc(x.name)}</td><td>${x.val.toLocaleString()}</td><td class="${cls(x.chg)}">${sign(x.chg)}${x.chg.toFixed(2)}%</td><td>${x.pre.toLocaleString()}</td></tr>`).join("")}</table>`;
+  h+=`<div style="font-weight:700;margin:10px 0 4px">美股</div>`+s.us.map(x=>`<div class="li"><span class="name">${esc(x.name)}</span><span class="val ${cls(x.chg)}">${x.val.toLocaleString()} ${sign(x.chg)}${x.chg.toFixed(2)}%</span></div>`).join("");
+  h+=`<div style="font-weight:700;margin:10px 0 4px">港股</div>`+s.hk.map(x=>`<div class="li"><span class="name">${esc(x.name)}</span><span class="val ${cls(x.chg)}">${x.val.toLocaleString()} ${sign(x.chg)}${x.chg.toFixed(2)}%</span></div>`).join("");
+  h+=`<div style="font-weight:700;margin:10px 0 4px">大宗商品</div>`+s.cmd.map(x=>`<div class="li"><span class="name">${esc(x.name)}</span><span class="val ${cls(x.chg)}">${x.val.toLocaleString()} <small>${esc(x.unit||'')} ${sign(x.chg)}${x.chg.toFixed(2)}%</small></span></div>`).join("");
+  return h;
+}
+
+function esc(s){return (s||"").replace(/[&<>"]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[m]));}
+
+/* ============ 表单 ============ */
+function openSheet(html){$("#sheet").innerHTML=html;$("#mask").classList.add("show");}
+function closeSheet(){$("#mask").classList.remove("show");}
+$("#mask").onclick=(e)=>{if(e.target===$("#mask"))closeSheet();};
+
+function newsForm(){
+  openSheet(`<h4>添加财经新闻</h4>
+    <div class="field"><label>标题</label><textarea id="f_t" placeholder="新闻标题"></textarea></div>
+    <div class="field"><label>分类</label><select id="f_cat"><option value="policy">政策（政府相关）</option><option value="macro">宏观</option><option value="ind">行业</option></select></div>
+    <div class="field"><label>概要</label><textarea id="f_sum" placeholder="一句话摘要，便于快速判断"></textarea></div>
+    <div class="field"><label>原文链接</label><input id="f_link" placeholder="https://..."></div>
+    <div class="field"><label>来源</label><input id="f_src" placeholder="如：新华社 / 央行"></div>
+    <div class="field"><label><input type="checkbox" id="f_star" style="width:auto;margin-right:6px">标记为重要（★）</label></div>
+    <div class="sheetBtns"><button class="btnCancel" onclick="closeSheet()">取消</button><button class="btnSave" id="f_save">保存</button></div>`);
+  $("#f_save").onclick=()=>{
+    const t=$("#f_t").value.trim();if(!t)return alert("请填写标题");
+    state.news.push({id:id(),t,cat:$("#f_cat").value,src:$("#f_src").value.trim(),summary:$("#f_sum").value.trim(),link:$("#f_link").value.trim(),d:"刚刚",star:$("#f_star").checked,ts:now()});
+    save();renderNews();closeSheet();
+  };
+}
+function indexForm(){
+  openSheet(`<h4>添加指标股 / 个股</h4>
+    <div class="field"><label>名称</label><input id="f_name" placeholder="如：上证指数 / 贵州茅台"></div>
+    <div class="field"><label>最新价</label><input type="number" id="f_val" step="0.01"></div>
+    <div class="field"><label>涨跌幅(%)</label><input type="number" id="f_chg" step="0.01" placeholder="正为涨，负为跌"></div>
+    <div class="field"><label>昨收</label><input type="number" id="f_pre" step="0.01"></div>
+    <div class="sheetBtns"><button class="btnCancel" onclick="closeSheet()">取消</button><button class="btnSave" id="f_save">保存</button></div>`);
+  $("#f_save").onclick=()=>{
+    const name=$("#f_name").value.trim();if(!name)return alert("请填写名称");
+    state.index.push({id:id(),name,val:+$("#f_val").value||0,chg:+$("#f_chg").value||0,pre:+$("#f_pre").value||0});
+    save();renderIndex();closeSheet();
+  };
+}
+function holdForm(){
+  openSheet(`<h4>添加增持 / 减持</h4>
+    <div class="field"><label>股票名称</label><input id="f_name" placeholder="如：招商银行"></div>
+    <div class="field"><label>方向</label><select id="f_dir"><option value="add">增持</option><option value="cut">减持</option></select></div>
+    <div class="field"><label>比例(%)</label><input type="number" id="f_pct" step="0.01"></div>
+    <div class="field"><label>日期</label><input id="f_date" placeholder="如：08-28"></div>
+    <div class="field"><label>备注</label><input id="f_note" placeholder="如：大股东增持，彰显信心"></div>
+    <div class="sheetBtns"><button class="btnCancel" onclick="closeSheet()">取消</button><button class="btnSave" id="f_save">保存</button></div>`);
+  $("#f_save").onclick=()=>{
+    const name=$("#f_name").value.trim();if(!name)return alert("请填写股票名称");
+    state.hold.push({id:id(),name,dir:$("#f_dir").value,pct:+$("#f_pct").value||0,date:$("#f_date").value.trim(),note:$("#f_note").value.trim()});
+    save();renderHold();closeSheet();
+  };
+}
+function globalForm(){
+  openSheet(`<h4>补充全球市场数据</h4>
+    <div class="field"><label>归属</label><select id="f_g"><option value="us">美国</option><option value="hk">香港</option><option value="cmd">大宗商品</option></select></div>
+    <div class="field"><label>名称</label><input id="f_name" placeholder="如：纳斯达克 / 恒生指数 / COMEX黄金"></div>
+    <div class="field"><label>最新值</label><input type="number" id="f_val" step="0.01"></div>
+    <div class="field"><label>涨跌幅(%)</label><input type="number" id="f_chg" step="0.01"></div>
+    <div class="field" id="f_unit_w"><label>单位（仅大宗商品）</label><input id="f_unit" placeholder="如：美元/盎司"></div>
+    <div class="sheetBtns"><button class="btnCancel" onclick="closeSheet()">取消</button><button class="btnSave" id="f_save">保存</button></div>`);
+  $("#f_save").onclick=()=>{
+    const name=$("#f_name").value.trim();if(!name)return alert("请填写名称");
+    const g=$("#f_g").value;const o={id:id(),name,val:+$("#f_val").value||0,chg:+$("#f_chg").value||0};
+    if(g==="cmd")o.unit=$("#f_unit").value.trim();
+    state[g].push(o);save();renderGlobal();closeSheet();
+  };
+}
+function stockForm(prefillName){
+  const pn=(prefillName||"").trim();
+  const codePH=/^\d{6}$/.test(pn)?pn:"";
+  openSheet(`<h4>添加 / 更新我的个股</h4>
+    <div class="field"><label>代码（6位）</label><input id="f_code" placeholder="如：600519" value="${esc(codePH)}"></div>
+    <div class="field"><label>名称</label><input id="f_name" placeholder="如：贵州茅台" value="${esc(pn)}"></div>
+    <div class="field"><label>开盘价</label><input type="number" id="f_open" step="0.01" placeholder="当日开盘价"></div>
+    <div class="field"><label>收盘价</label><input type="number" id="f_close" step="0.01" placeholder="当日收盘价"></div>
+    <div class="field"><label>备注（可选）</label><input id="f_note" placeholder="如：观察仓 / 已建仓"></div>
+    <div class="sheetBtns"><button class="btnCancel" onclick="closeSheet()">取消</button><button class="btnSave" id="f_save">保存</button></div>`);
+  $("#f_save").onclick=()=>{
+    const code=$("#f_code").value.trim();const name=$("#f_name").value.trim();
+    if(!code||!name)return alert("请填写代码与名称");
+    if(!/^\d{6}$/.test(code))return alert("代码需为6位数字");
+    if(!state.stocks)state.stocks=[];
+    const open=+$("#f_open").value||0,close=+$("#f_close").value||0;
+    const item={code,name,open,close,note:$("#f_note").value.trim()};
+    const i=state.stocks.findIndex(x=>x.code===code);
+    if(i>=0)state.stocks[i]=item;else state.stocks.push(item);
+    save();renderStockMine();renderStockResults();closeSheet();
+    alert("已保存：「"+name+"（"+code+"）」");
+  };
+}
+
+/* ============ 事件 ============ */
+$("#addNews").onclick=newsForm;
+$("#addIndex").onclick=indexForm;
+$("#addHold").onclick=holdForm;
+$("#addGlobal").onclick=globalForm;
+$("#addStock").onclick=stockForm;
+$("#stockSearch").oninput=renderStockResults;
+$$("#newsChips .chip").forEach(c=>c.onclick=()=>{
+  $$("#newsChips .chip").forEach(x=>x.classList.remove("active"));c.classList.add("active");renderNews();
+});
+function showTop(p){
+  $$(".topTab").forEach(t=>t.classList.toggle("active",t.dataset.top===p));
+  $$("#bottomNav button").forEach(t=>t.classList.toggle("active",t.dataset.top===p));
+  $$(".topPage").forEach(pg=>pg.classList.toggle("active",pg.id==="top-"+p));
+  $("#subTabs").style.display=p==="today"?"flex":"none";
+  if(p==="catalog")renderCatalog();
+  if(p==="history")renderHistory();
+  if(p==="today"){drawTrend();}
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function switchPage(p){
+  $$(".subTab").forEach(t=>t.classList.toggle("active",t.dataset.page===p));
+  $$("#page-news,#page-ashare,#page-global,#page-stock").forEach(pg=>pg.classList.toggle("active",pg.id==="page-"+p));
+  if(p==="ashare"||p==="global")drawTrend();
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+$$(".topTab").forEach(t=>t.onclick=()=>showTop(t.dataset.top));
+$$("#bottomNav button").forEach(t=>t.onclick=()=>showTop(t.dataset.top));
+$$(".subTab").forEach(t=>t.onclick=()=>switchPage(t.dataset.page));
+
+$("#btnArchive").onclick=()=>{
+  if(!confirm("将当前「今日信息」全量存档到历史记录？"))return;
+  const label="存档 · 2026-09-01 08:30 前";
+  const ex=state.history.find(x=>x.label===label);
+  if(ex){ex.snapshot=snap();ex.ts=Date.now();}
+  else pushHistory(label,snap());
+  save();renderHistory();alert("已存档到「历史信息」");showTop("history");
+};
+$("#btnExport").onclick=()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);
+  a.download="投资理财决策台_备份_"+fmtDate(new Date())+".json";a.click();
+  $("#syncTxt").textContent="已备份";
+};
+$("#btnImport").onclick=()=>$("#fileInput").click();
+$("#fileInput").onchange=(e)=>{
+  const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=()=>{
+    try{const d=JSON.parse(r.result);if(d&&d.news){state=d;save();renderAll();alert("导入成功");}}
+    catch(err){alert("文件格式错误");}
+  };r.readAsText(f);e.target.value="";
+};
+$("#btnClearSample").onclick=()=>{
+  if(!confirm("确定清空示例数据？你自行添加的数据将保留，示例将被移除。"))return;
+  ["news","index","hold","us","hk","cmd","stocks"].forEach(k=>{
+    if(Array.isArray(state[k]))state[k]=state[k].filter(o=>!o._sample);
+  });
+  save();renderAll();alert("示例数据已清空，你添加的数据已保留");
+};
+
+/* ============ 初始化 ============ */
+function renderAll(){renderCatalog();renderNews();renderIndex();renderHold();renderGlobal();renderWatch();renderStockMine();drawTrend();renderHistory();}
+function init(){
+  load();renderAll();
+  const d=new Date();const p=n=>String(n).padStart(2,"0");
+  $("#todayDate").textContent=`${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`;
+  showTop("catalog");
+}
+init();
+</script>
+</body>
+</html>
